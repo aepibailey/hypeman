@@ -1,0 +1,469 @@
+<title>Hype Man</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bowlby+One&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one phone-width column — logo, the big listen button, pitch trace, then the mixing controls. Single dark "studio at night" look, gold + ice. */
+:root{
+  --bg:#0b0e1f;
+  --panel:#141936;
+  --line:#272e59;
+  --text:#eef0ff;
+  --muted:#8c93c0;
+  --gold:#f6c453;
+  --gold-deep:#b9852a;
+  --ice:#8fd6ff;
+  --ice-glow:rgba(143,214,255,.38);
+  --gold-glow:rgba(246,196,83,.45);
+  --hot:#ff6b7f;
+  --hot-glow:rgba(255,107,127,.42);
+  --display:'Bowlby One', Impact, 'Arial Black', sans-serif;
+  --ui:'Barlow Condensed', 'Arial Narrow', system-ui, sans-serif;
+  --mono:'JetBrains Mono', ui-monospace, Menlo, monospace;
+  color-scheme:dark;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--ui);font-size:17px;line-height:1.35}
+.wrap{max-width:480px;margin:0 auto;padding-block:18px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:22px}
+header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.logo{font-family:var(--display);font-size:clamp(30px,9vw,40px);letter-spacing:.01em;margin:0;line-height:1;color:var(--gold);text-shadow:2px 2px 0 var(--gold-deep),4px 4px 0 var(--line)}
+.readout{font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.04em;font-variant-numeric:tabular-nums}
+.stage{display:flex;flex-direction:column;align-items:center;gap:14px}
+.orb{--lvl:0;width:min(62vw,232px);aspect-ratio:1;max-width:100%;border-radius:50%;border:0;cursor:pointer;
+  background:radial-gradient(circle at 35% 30%,#ffe9a8 0%,var(--gold) 38%,var(--gold-deep) 100%);
+  color:var(--bg);font-family:var(--display);font-size:20px;line-height:1.05;padding:24px;
+  box-shadow:0 0 0 6px var(--panel),0 0 0 7px var(--line);transition:box-shadow .08s linear,transform .12s ease;
+  touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+.orb[data-state="recording"]{transform:scale(.96);box-shadow:0 0 0 6px var(--panel),0 0 0 calc(8px + var(--lvl)*26px) var(--hot-glow)}
+.orb[data-state="working"]{transform:scale(.97)}
+.orb[data-state="playing"]{box-shadow:0 0 0 6px var(--panel),0 0 34px 10px var(--gold-glow);animation:hit .4286s ease-out infinite}
+@keyframes hit{0%{transform:scale(1.04)}100%{transform:scale(1)}}
+.orb:active{transform:scale(.96)}
+.orb .sub{display:block;font-family:var(--ui);font-weight:600;font-size:14px;letter-spacing:.14em;margin-top:6px;opacity:.75}
+.status{font-family:var(--mono);font-size:13px;color:var(--muted);text-align:center;min-height:2.6em;max-width:36ch;text-wrap:balance}
+.status b{color:var(--text);font-weight:600}
+.status .warn{color:var(--hot)}
+.actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%}
+.btn{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:12px 6px;font-family:var(--ui);font-weight:700;font-size:15px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.primary{border-color:var(--ice);color:var(--ice)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.card-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.label{font-size:13px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.legend{display:flex;gap:12px;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:5px}
+#trace{width:100%;height:150px;display:block}
+.controls{display:flex;flex-direction:column;gap:14px}
+.ctl{display:flex;flex-direction:column;gap:6px}
+.ctl-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.seg{display:flex;gap:4px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:3px}
+.seg button{flex:1;min-width:0;border:0;background:transparent;color:var(--muted);font-family:var(--ui);font-weight:700;font-size:15px;letter-spacing:.04em;padding:8px 4px;border-radius:7px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--gold);color:var(--bg)}
+select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px 10px;font-family:var(--ui);font-weight:600;font-size:16px}
+input[type=range]{width:100%;accent-color:var(--gold)}
+.note{font-size:14px;color:var(--muted);max-width:60ch}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--ice);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.orb,.orb[data-state="playing"]{animation:none;transition:none}}
+</style>
+
+<main class="wrap">
+  <header>
+    <h1 class="logo">HYPE MAN</h1>
+    <div class="readout" id="readout">140 BPM · C# MINOR</div>
+  </header>
+
+  <section class="stage">
+    <button class="orb" id="orb" data-state="idle" aria-live="polite">HOLD TO<br>RECORD<span class="sub">LET GO TO FIRE</span></button>
+    <div class="status" id="status">Hold the button, say one word, let go. It comes right back tuned, triple-stacked, with reverb.</div>
+    <div class="actions">
+      <button class="btn primary" id="recBtn">Record</button>
+      <button class="btn" id="demoBtn">Demo</button>
+      <button class="btn" id="replayBtn" disabled>Replay</button>
+    </div>
+  </section>
+
+  <section class="card" aria-label="Pitch trace">
+    <div class="card-head">
+      <span class="label" id="traceLabel">Pitch · demo voice</span>
+      <span class="legend"><span><i style="background:var(--ice)"></i>your voice</span><span><i style="background:var(--gold)"></i>tuned</span></span>
+    </div>
+    <canvas id="trace"></canvas>
+  </section>
+
+  <section class="card controls" aria-label="Sound settings">
+    <div class="ctl-row">
+      <div class="ctl"><label class="label" for="key">Key</label><select id="key"></select></div>
+      <div class="ctl"><span class="label">Retune</span>
+        <div class="seg" data-set="retune"><button data-v="hard">Hard</button><button data-v="natural">Natural</button></div></div>
+    </div>
+    <div class="ctl"><span class="label">Scale</span>
+      <div class="seg" data-set="scale"><button data-v="minor">Minor</button><button data-v="major">Major</button><button data-v="penta">Penta</button><button data-v="chromatic">Chrom.</button></div></div>
+    <div class="ctl-row">
+      <div class="ctl"><span class="label">Ad-libs</span>
+        <div class="seg" data-set="pattern"><button data-v="triple">×3</button><button data-v="single">×1</button></div></div>
+      <div class="ctl"><span class="label">Octave double</span>
+        <div class="seg" data-set="double"><button data-v="on">On</button><button data-v="off">Off</button></div></div>
+    </div>
+    <div class="ctl"><label class="label" for="space">Reverb + echo</label><input type="range" id="space" min="0" max="100"></div>
+  </section>
+
+  <p class="note">Chrome asks for the mic the first time you press. Allow it, then press and hold again. If the mic is blocked in this view, Record opens your phone's recorder instead.</p>
+  <input type="file" id="filepick" accept="audio/*" capture hidden>
+</main>
+
+<script>
+/* ===== DSP (pure functions) ===== */
+const NOTE=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const SCALES={minor:[0,2,3,5,7,8,10],major:[0,2,4,5,7,9,11],penta:[0,3,5,7,10],chromatic:[0,1,2,3,4,5,6,7,8,9,10,11]};
+const BPM=140, QUARTER=60/BPM, TRIP8=QUARTER/3;
+const mod=(a,n)=>((a%n)+n)%n;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+function trimClip(x,sr){
+  let pk=0;for(let i=0;i<x.length;i++){const a=Math.abs(x[i]);if(a>pk)pk=a;}
+  if(pk<0.003)return null;
+  const th=pk*0.06;let a=0,b=x.length-1;
+  while(a<b&&Math.abs(x[a])<th)a++;while(b>a&&Math.abs(x[b])<th)b--;
+  const pad=Math.round(0.02*sr);a=Math.max(0,a-pad);b=Math.min(x.length-1,b+pad);
+  if((b-a)/sr<0.1)return null;
+  const y=x.slice(a,b+1),g=0.9/pk,f=Math.round(0.005*sr);
+  for(let i=0;i<y.length;i++){let e=1;if(i<f)e=i/f;else if(i>y.length-f)e=(y.length-i)/f;y[i]*=g*e;}
+  return y;
+}
+
+function detectPitch(x,sr){
+  const ds=Math.max(1,Math.round(sr/12000)),sd=sr/ds,M=Math.floor(x.length/ds);
+  const y=new Float32Array(M);
+  for(let i=0;i<M;i++){let s=0;for(let k=0;k<ds;k++)s+=x[i*ds+k];y[i]=s/ds;}
+  const tauMin=Math.max(2,Math.floor(sd/900)),tauMax=Math.ceil(sd/65),W=Math.round(sd*0.022),F=W+tauMax+1;
+  const hopD=Math.max(1,Math.round(sd*0.005)),hop=hopD*ds,nF=Math.max(1,Math.ceil(x.length/hop));
+  let pk=0;for(let i=0;i<M;i++){const a=Math.abs(y[i]);if(a>pk)pk=a;}
+  const f0=new Float32Array(nF),d=new Float32Array(tauMax+2);
+  if(M<F)return{f0,hop};
+  for(let f=0;f<nF;f++){
+    const st=clamp(Math.round(f*hopD-F/2),0,M-F);
+    let e=0;for(let j=0;j<W;j++)e+=y[st+j]*y[st+j];
+    if(Math.sqrt(e/W)<pk*0.05)continue;
+    d[0]=1;let run=0;
+    for(let tau=1;tau<=tauMax;tau++){let s=0;for(let j=0;j<W;j++){const q=y[st+j]-y[st+j+tau];s+=q*q;}run+=s;d[tau]=run>0?s*tau/run:1;}
+    let found=-1;
+    for(let tau=tauMin;tau<tauMax;tau++){if(d[tau]<0.15){while(tau+1<tauMax&&d[tau+1]<d[tau])tau++;found=tau;break;}}
+    if(found<0){let bv=0.25;for(let tau=tauMin;tau<tauMax;tau++)if(d[tau]<bv){bv=d[tau];found=tau;}}
+    if(found<1)continue;
+    const a=d[found-1],b=d[found],c=d[found+1],den=a-2*b+c;
+    const tau=found+(den!==0?clamp(0.5*(a-c)/den,-0.5,0.5):0);
+    f0[f]=sd/tau;
+  }
+  return{f0,hop};
+}
+
+function cleanTrack(f0){
+  const n=f0.length,c=new Float32Array(n);
+  for(let i=0;i<n;i++){
+    if(f0[i]<=0)continue;const v=[];
+    for(let k=i-2;k<=i+2;k++)if(k>=0&&k<n&&f0[k]>0)v.push(f0[k]);
+    v.sort((p,q)=>p-q);c[i]=v[v.length>>1];
+  }
+  for(let i=0;i<n;){ // drop voiced islands shorter than 3 frames
+    if(c[i]>0){let j=i;while(j<n&&c[j]>0)j++;if(j-i<3)for(let k=i;k<j;k++)c[k]=0;i=j;}else i++;
+  }
+  for(let i=1;i<n;){ // bridge gaps up to 3 frames
+    if(c[i]<=0&&c[i-1]>0){let j=i;while(j<n&&c[j]<=0)j++;
+      if(j<n&&j-i<=3){const a=c[i-1],b=c[j];for(let k=i;k<j;k++)c[k]=a+(b-a)*(k-i+1)/(j-i+1);}i=j;}else i++;
+  }
+  return c;
+}
+
+function nearestInScale(m,pcs){
+  let best=Math.round(m),bd=1e9;
+  for(let k=Math.floor(m)-7;k<=Math.ceil(m)+7;k++){if(pcs.has(mod(k,12))){const dd=Math.abs(k-m);if(dd<bd){bd=dd;best=k;}}}
+  return best;
+}
+
+function correctPitch(f0,hopSec,s){
+  const pcs=new Set(SCALES[s.scale].map(p=>(p+s.key)%12));
+  const n=f0.length,inM=new Float32Array(n).fill(NaN),outM=new Float32Array(n).fill(NaN),ratio=new Float32Array(n).fill(1);
+  const a=1-Math.exp(-hopSec/0.07);let prevT=null,corrS=0,wasV=false;
+  for(let i=0;i<n;i++){
+    if(f0[i]<=0){wasV=false;continue;}
+    const m=69+12*Math.log2(f0[i]/440);inM[i]=m;
+    let t=nearestInScale(m,pcs);
+    if(prevT!==null&&t!==prevT&&Math.abs(m-prevT)<0.62)t=prevT;
+    prevT=t;
+    const c=t-m;let cc;
+    if(s.retune==='hard')cc=c;else{corrS=wasV?corrS+(c-corrS)*a:c;cc=corrS;}
+    wasV=true;outM[i]=m+cc;ratio[i]=Math.pow(2,cc/12);
+  }
+  return{inM,outM,ratio};
+}
+
+function analyze(x,sr,s){
+  const{f0:raw,hop}=detectPitch(x,sr);const f0=cleanTrack(raw);const hopSec=hop/sr;
+  return Object.assign({f0,hop,hopSec},correctPitch(f0,hopSec,s));
+}
+
+/* TD-PSOLA: pitch-synchronous grains, re-spaced at the tuned period. Keeps duration and vowel color. */
+function psola(x,sr,f0,ratio,hop,mul){
+  const N=x.length,nF=f0.length;
+  const fAt=i=>{const k=Math.floor(i/hop);return k>=0&&k<nF?f0[k]:0;};
+  const rAt=i=>{const k=Math.floor(i/hop);return k>=0&&k<nF?ratio[k]:1;};
+  const ms=[];let t=0;
+  while(t<N){
+    const f=fAt(t),v=f>0,T=v?sr/f:sr/140;
+    ms.push({p:t,T,r:v?rAt(t)*mul:1,g:v?1:(mul>1?0.25:1)});
+    let nx=t+T;const fn=fAt(Math.round(nx));
+    if(v&&fn>0){const Tn=sr/fn,lo=Math.max(t+1,Math.round(nx-Tn*0.2)),hi=Math.min(N-1,Math.round(nx+Tn*0.2));
+      let bi=Math.round(nx),bv=-1e9;for(let i=lo;i<=hi;i++)if(x[i]>bv){bv=x[i];bi=i;}nx=bi;}
+    t=Math.max(t+1,Math.round(nx));
+  }
+  const y=new Float32Array(N),ws=new Float32Array(N);
+  let s=ms[0].p,k=0;
+  while(s<N){
+    while(k+1<ms.length&&Math.abs(ms[k+1].p-s)<=Math.abs(ms[k].p-s))k++;
+    const m=ms[k],Ta=Math.max(8,Math.round(m.T)),c=Math.round(s);
+    for(let j=-Ta;j<=Ta;j++){const si=m.p+j,di=c+j;if(si<0||si>=N||di<0||di>=N)continue;
+      const w=0.5+0.5*Math.cos(Math.PI*j/Ta);y[di]+=x[si]*w*m.g;ws[di]+=w;}
+    s+=Math.max(4,m.T/m.r);
+  }
+  for(let i=0;i<N;i++)y[i]/=Math.max(ws[i],0.35);
+  return y;
+}
+
+/* Synthetic "yeah" voice, deliberately a little flat and wobbly, for the demo */
+function demoVoice(sr){
+  const dur=0.7,n=Math.round(dur*sr),x=new Float32Array(n);let ph=0;
+  const R=[{a:300,b:730,bw:70,g:1,y1:0,y2:0},{a:2200,b:1100,bw:110,g:0.6,y1:0,y2:0},{a:2900,b:2450,bw:160,g:0.35,y1:0,y2:0}];
+  for(let i=0;i<n;i++){
+    const t=i/sr,f0=199+16*(t/dur)+3.5*Math.sin(2*Math.PI*5.2*t);
+    ph+=f0/sr;ph-=Math.floor(ph);const src=2*ph-1;
+    const env=Math.min(1,t/0.03)*(t>dur-0.12?(dur-t)/0.12:1);
+    const mix=Math.min(1,t/0.14);let out=0;
+    for(const r of R){const f=r.a+(r.b-r.a)*mix,rr=Math.exp(-Math.PI*r.bw/sr),b1=2*rr*Math.cos(2*Math.PI*f/sr),b2=-rr*rr;
+      const yv=(1-rr)*src+b1*r.y1+b2*r.y2;r.y2=r.y1;r.y1=yv;out+=yv*r.g;}
+    x[i]=out*env;
+  }
+  let pk=0;for(let i=0;i<n;i++)pk=Math.max(pk,Math.abs(x[i]));for(let i=0;i<n;i++)x[i]*=0.8/pk;
+  return x;
+}
+
+function summarize(a){
+  const ins=[],outs=[];for(let i=0;i<a.inM.length;i++)if(!isNaN(a.inM[i])){ins.push(a.inM[i]);outs.push(a.outM[i]);}
+  if(!ins.length)return null;ins.sort((p,q)=>p-q);outs.sort((p,q)=>p-q);
+  return{inm:ins[ins.length>>1],outm:outs[outs.length>>1]};
+}
+const noteName=m=>{const r=Math.round(m);return NOTE[mod(r,12)]+(Math.floor(r/12)-1);};
+</script>
+
+<script>
+/* ===== App ===== */
+const $=s=>document.querySelector(s);
+const DEF={key:1,scale:'minor',retune:'hard',pattern:'triple',double:'on',space:40};
+let S=Object.assign({},DEF);
+try{const j=JSON.parse(localStorage.getItem('hypeman')||'null');if(j)S=Object.assign(S,j);}catch(e){}
+const save=()=>{try{localStorage.setItem('hypeman',JSON.stringify(S));}catch(e){}};
+
+let ctx=null,stream=null,proc=null,srcNode=null,busy=false;
+let lastClip=null,lastSr=0,lastBuf=null,orbTimer=null,curSrc=null;
+const demo48=demoVoice(48000);
+
+const orb=$('#orb'),statusEl=$('#status');
+function setStatus(html){statusEl.innerHTML=html;}
+function setOrb(state){
+  orb.dataset.state=state;
+  const t={idle:['HOLD TO<br>RECORD','LET GO TO FIRE'],recording:['RECORD&shy;ING','LET GO TO FIRE'],working:['TUNING','ONE SEC'],playing:['HYPE!','HOLD FOR ANOTHER']}[state];
+  orb.innerHTML=t[0]+'<span class="sub">'+t[1]+'</span>';
+}
+function getCtx(){
+  if(!ctx)ctx=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'});
+  if(ctx.state==='suspended')ctx.resume();
+  return ctx;
+}
+
+/* ---- controls ---- */
+const keySel=$('#key');
+NOTE.forEach((n,i)=>{const o=document.createElement('option');o.value=i;o.textContent=n;keySel.appendChild(o);});
+function syncUI(){
+  keySel.value=S.key;
+  document.querySelectorAll('.seg').forEach(seg=>{const k=seg.dataset.set;seg.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===S[k])));});
+  $('#space').value=S.space;
+  const scaleName={minor:'MINOR',major:'MAJOR',penta:'MINOR PENTA',chromatic:'CHROMATIC'}[S.scale];
+  $('#readout').textContent=BPM+' BPM · '+(S.scale==='chromatic'?'':NOTE[S.key]+' ')+scaleName;
+}
+function changed(){save();syncUI();redrawTrace();}
+keySel.addEventListener('change',()=>{S.key=+keySel.value;changed();});
+document.querySelectorAll('.seg').forEach(seg=>seg.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;S[seg.dataset.set]=b.dataset.v;changed();}));
+$('#space').addEventListener('input',e=>{S.space=+e.target.value;save();});
+
+/* ---- trace ---- */
+const cv=$('#trace');
+function redrawTrace(){
+  const clip=lastClip||demo48,sr=lastClip?lastSr:48000;
+  drawTrace(analyze(clip,sr,S));
+}
+function drawTrace(a){
+  const dpr=window.devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight;
+  cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);
+  const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,w,h);
+  const cs=getComputedStyle(document.documentElement),C=k=>cs.getPropertyValue(k).trim();
+  let lo=1e9,hi=-1e9;
+  for(let i=0;i<a.inM.length;i++){const p=a.inM[i],q=a.outM[i];if(!isNaN(p)){lo=Math.min(lo,p,q);hi=Math.max(hi,p,q);}}
+  g.font='10px '+C('--mono');
+  if(lo>hi){g.fillStyle=C('--muted');g.fillText('No pitch found in that take.',36,h/2);return;}
+  const mid=(lo+hi)/2,span=Math.max(7,hi-lo+3);lo=Math.floor(mid-span/2);hi=Math.ceil(mid+span/2);
+  const L=34,R=6,T=6,B=6,X=i=>L+(w-L-R)*i/Math.max(1,a.inM.length-1),Y=m=>T+(h-T-B)*(hi-m)/(hi-lo);
+  const pcs=new Set(SCALES[S.scale].map(p=>(p+S.key)%12));
+  for(let m=lo;m<=hi;m++){
+    const inS=pcs.has(mod(m,12)),y=Math.round(Y(m))+0.5;
+    g.strokeStyle=C('--line');g.lineWidth=1;g.setLineDash(inS?[]:[2,4]);g.globalAlpha=inS?1:0.5;
+    g.beginPath();g.moveTo(L,y);g.lineTo(w-R,y);g.stroke();
+    if(inS&&(hi-lo<=14||mod(m,12)===S.key)){g.globalAlpha=1;g.fillStyle=C('--muted');g.fillText(noteName(m),2,y+3);}
+  }
+  g.setLineDash([]);g.globalAlpha=1;
+  const line=(arr,col,wd)=>{g.strokeStyle=col;g.lineWidth=wd;g.lineJoin='round';g.beginPath();let on=false;
+    for(let i=0;i<arr.length;i++){const v=arr[i];if(isNaN(v)){on=false;continue;}const x=X(i),y=Y(v);on?g.lineTo(x,y):g.moveTo(x,y);on=true;}g.stroke();};
+  line(a.outM,C('--gold'),3);line(a.inM,C('--ice'),1.5);
+}
+window.addEventListener('resize',()=>redrawTrace());
+
+/* ---- render chain ---- */
+function makeIR(oc,sec){
+  const sr=oc.sampleRate,n=Math.round(sec*sr),pre=Math.round(0.015*sr),b=oc.createBuffer(2,n,sr);
+  for(let ch=0;ch<2;ch++){const d=b.getChannelData(ch);for(let i=pre;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,2.8);}
+  return b;
+}
+async function render(voc,dbl,sr){
+  const clip=voc.length/sr,reps=S.pattern==='triple'?3:1;
+  const d=Math.ceil((clip+0.02)/TRIP8)*TRIP8,tail=2.6;
+  const len=Math.ceil((d*(reps-1)+clip+tail)*sr);
+  const oc=new OfflineAudioContext(2,len,sr);
+  const mk=arr=>{const b=oc.createBuffer(1,arr.length,sr);b.getChannelData(0).set(arr);return b;};
+  const vb=mk(voc),db=dbl?mk(dbl):null;
+  const bus=oc.createGain();
+  const hp=oc.createBiquadFilter();hp.type='highpass';hp.frequency.value=95;
+  const pres=oc.createBiquadFilter();pres.type='peaking';pres.frequency.value=3200;pres.Q.value=0.9;pres.gain.value=4;
+  const air=oc.createBiquadFilter();air.type='highshelf';air.frequency.value=9000;air.gain.value=3;
+  const comp=oc.createDynamicsCompressor();comp.threshold.value=-22;comp.knee.value=6;comp.ratio.value=5;comp.attack.value=0.003;comp.release.value=0.12;
+  const sh=oc.createWaveShaper();const cn=2048,curve=new Float32Array(cn),kk=1.6;
+  for(let i=0;i<cn;i++){const xx=i/(cn-1)*2-1;curve[i]=Math.tanh(kk*xx)/Math.tanh(kk);}sh.curve=curve;sh.oversample='2x';
+  bus.connect(hp);hp.connect(pres);pres.connect(air);air.connect(comp);comp.connect(sh);
+  const dry=oc.createGain();dry.gain.value=0.9;sh.connect(dry);dry.connect(oc.destination);
+  const sp=S.space/100;
+  const conv=oc.createConvolver();conv.buffer=makeIR(oc,2.6);
+  const lp=oc.createBiquadFilter();lp.type='lowpass';lp.frequency.value=7000;
+  const wet=oc.createGain();wet.gain.value=sp*0.9;
+  sh.connect(conv);conv.connect(lp);lp.connect(wet);wet.connect(oc.destination);
+  const dl=oc.createDelay(1.5);dl.delayTime.value=QUARTER;const fb=oc.createGain();fb.gain.value=0.3;
+  const dOut=oc.createGain();dOut.gain.value=sp*0.45;
+  sh.connect(dl);dl.connect(fb);fb.connect(dl);dl.connect(dOut);dOut.connect(oc.destination);
+  const gains=[1,0.82,0.92],pans=[0,-0.4,0.4];
+  const add=(buf,t,gv,pv)=>{const s=oc.createBufferSource();s.buffer=buf;const gg=oc.createGain();gg.gain.value=gv;
+    const pn=oc.createStereoPanner();pn.pan.value=pv;s.connect(gg);gg.connect(pn);pn.connect(bus);s.start(t);};
+  for(let r=0;r<reps;r++){add(vb,r*d,gains[r],pans[r]);if(db)add(db,r*d,0.3,-pans[r]*0.6);}
+  const out=await oc.startRendering();
+  let pk=0;for(let ch=0;ch<out.numberOfChannels;ch++){const a=out.getChannelData(ch);for(let i=0;i<a.length;i++)pk=Math.max(pk,Math.abs(a[i]));}
+  if(pk>0){const g=0.92/pk;for(let ch=0;ch<out.numberOfChannels;ch++){const a=out.getChannelData(ch);for(let i=0;i<a.length;i++)a[i]*=g;}}
+  return{buf:out,gateSec:d*(reps-1)+clip+0.7};
+}
+
+async function hypeify(clip,sr,label){
+  busy=true;setOrb('working');
+  try{
+    const a=analyze(clip,sr,S);
+    const voc=psola(clip,sr,a.f0,a.ratio,a.hop,1);
+    const dbl=S.double==='on'?psola(clip,sr,a.f0,a.ratio,a.hop,2):null;
+    const{buf,gateSec}=await render(voc,dbl,sr);
+    lastClip=clip;lastSr=sr;lastBuf=buf;$('#replayBtn').disabled=false;
+    $('#traceLabel').textContent='Pitch · '+label;drawTrace(a);
+    const sm=summarize(a),dur=(clip.length/sr).toFixed(2);
+    if(sm){const c=Math.round((sm.inm-Math.round(sm.inm))*100);
+      setStatus('Heard <b>'+dur+' s</b> · '+noteName(sm.inm)+' '+(c>=0?'+':'−')+Math.abs(c)+'¢ → <b>'+noteName(sm.outm)+'</b>');}
+    else setStatus('Heard <b>'+dur+' s</b>, no clear pitch. Try a longer vowel.');
+    play(buf,gateSec);
+  }catch(err){setStatus('<span class="warn">Something broke while tuning that take.</span> Try again.');busy=false;setOrb('idle');}
+}
+
+function stopPlayback(){if(curSrc){try{curSrc.stop();}catch(e){}curSrc=null;}clearTimeout(orbTimer);}
+function play(buf,gateSec){
+  stopPlayback();
+  const c=getCtx(),s=c.createBufferSource();s.buffer=buf;s.connect(c.destination);s.start();curSrc=s;
+  s.onended=()=>{if(curSrc===s)curSrc=null;};
+  busy=false;setOrb('playing');
+  orbTimer=setTimeout(()=>{if(orb.dataset.state==='playing')setOrb('idle');},gateSec*1000);
+}
+
+/* ---- press and hold to record ---- */
+let lvlRaf=0,lvl=0,recording=false,pressed=false,chunks=[],recSr=0;
+function setLevel(v){lvl=v;if(!lvlRaf)lvlRaf=requestAnimationFrame(()=>{lvlRaf=0;orb.style.setProperty('--lvl',Math.min(1,lvl*10).toFixed(3));});}
+function concat(cs){let n=0;for(const c of cs)n+=c.length;const o=new Float32Array(n);let p=0;for(const c of cs){o.set(c,p);p+=c.length;}return o;}
+const MAX_SEC=4;
+
+async function ensureMic(){
+  if(stream)return 'ready';
+  const c=getCtx();
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('nomic');
+  const t0=performance.now();
+  stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+  srcNode=c.createMediaStreamSource(stream);
+  proc=c.createScriptProcessor(1024,1,1);
+  const mute=c.createGain();mute.gain.value=0;
+  srcNode.connect(proc);proc.connect(mute);mute.connect(c.destination);
+  recSr=c.sampleRate;
+  proc.onaudioprocess=e=>{
+    if(!recording)return;
+    const inp=e.inputBuffer.getChannelData(0);let s=0;for(let i=0;i<inp.length;i++)s+=inp[i]*inp[i];
+    setLevel(Math.sqrt(s/inp.length));chunks.push(new Float32Array(inp));
+    if(chunks.length*1024/recSr>MAX_SEC)release();
+  };
+  return performance.now()-t0>400?'prompted':'ready';
+}
+
+async function press(){
+  if(pressed||recording||busy)return;
+  pressed=true;
+  let st;
+  try{st=await ensureMic();}
+  catch(e){pressed=false;setOrb('idle');setStatus('<span class="warn">The mic is blocked here.</span> Tap <b>Record</b> to use your phone\'s recorder instead.');return;}
+  if(st==='prompted'||!pressed){pressed=false;setStatus('Mic is ready. Now press and hold to record.');return;}
+  stopPlayback();chunks=[];recording=true;setOrb('recording');setStatus('Recording… let go to fire it back.');
+}
+function release(){
+  pressed=false;
+  if(!recording)return;
+  setTimeout(()=>{ // let the last audio block arrive
+    if(!recording)return;
+    recording=false;orb.style.setProperty('--lvl','0');
+    const raw=concat(chunks);chunks=[];
+    const clip=trimClip(raw,recSr);
+    if(!clip){setOrb('idle');setStatus('Too short. Hold the button for the whole word.');return;}
+    hypeify(clip,recSr,'your take');
+  },70);
+}
+orb.addEventListener('pointerdown',e=>{e.preventDefault();try{orb.setPointerCapture(e.pointerId);}catch(_){}press();});
+['pointerup','pointercancel','lostpointercapture'].forEach(t=>orb.addEventListener(t,release));
+orb.addEventListener('contextmenu',e=>e.preventDefault());
+orb.addEventListener('keydown',e=>{if((e.key===' '||e.key==='Enter')&&!e.repeat){e.preventDefault();press();}});
+orb.addEventListener('keyup',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();release();}});
+orb.addEventListener('click',e=>e.preventDefault());
+
+/* ---- record via phone recorder (fallback) ---- */
+const pick=$('#filepick');
+$('#recBtn').addEventListener('click',()=>{getCtx();pick.value='';pick.click();});
+pick.addEventListener('change',async()=>{
+  const f=pick.files&&pick.files[0];if(!f)return;
+  setStatus('Reading recording…');
+  try{
+    const c=getCtx(),ab=await f.arrayBuffer();
+    const buf=await new Promise((res,rej)=>{const p=c.decodeAudioData(ab,res,rej);if(p&&p.then)p.then(res,rej);});
+    const n=buf.length,mono=new Float32Array(n);
+    for(let ch=0;ch<buf.numberOfChannels;ch++){const d=buf.getChannelData(ch);for(let i=0;i<n;i++)mono[i]+=d[i]/buf.numberOfChannels;}
+    const clip=trimClip(mono.length>buf.sampleRate*4?mono.subarray(0,buf.sampleRate*4):mono,buf.sampleRate);
+    if(!clip){setStatus('That recording was silent or too short.');return;}
+    hypeify(clip,buf.sampleRate,'recording');
+  }catch(e){setStatus('<span class="warn">Couldn\'t read that recording.</span> Try your phone\'s default recorder app.');}
+});
+
+$('#demoBtn').addEventListener('click',()=>{const c=getCtx();hypeify(demoVoice(c.sampleRate),c.sampleRate,'demo voice');});
+$('#replayBtn').addEventListener('click',()=>{if(lastClip){getCtx();hypeify(lastClip,lastSr,'replay');}});
+
+syncUI();redrawTrace();
+</script>
