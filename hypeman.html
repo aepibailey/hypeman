@@ -63,12 +63,6 @@ header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
 .seg button[aria-pressed="true"]{background:var(--gold);color:var(--bg)}
 select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px 10px;font-family:var(--ui);font-weight:600;font-size:16px}
 input[type=range]{width:100%;accent-color:var(--gold)}
-.pads{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-@media (max-width:359px){.pads{grid-template-columns:repeat(2,1fr)}}
-.pad{height:74px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-family:var(--display);font-size:15px;line-height:1;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:transform .08s ease}
-.pad:active,.pad.hit{transform:scale(.93);background:var(--gold);color:var(--bg);border-color:var(--gold)}
-.drop-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.drop-row select{width:auto;flex:0 1 180px;min-width:0}
 .shake{animation:shake .38s cubic-bezier(.36,.07,.19,.97)}
 @keyframes shake{
   10%,90%{transform:translate(calc(var(--sk)*-.3),0)}
@@ -101,18 +95,6 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
       <button class="btn" id="demoBtn">Demo</button>
       <button class="btn" id="replayBtn" disabled>Replay</button>
     </div>
-  </section>
-
-  <section class="card" aria-label="Sound drops">
-    <div class="card-head"><span class="label">Drops</span><span class="legend">tap to fire</span></div>
-    <div class="pads">
-      <button class="pad" data-drop="horn">AIR<br>HORN</button>
-      <button class="pad" data-drop="skrrt">SKRRT</button>
-      <button class="pad" data-drop="siren">SIREN</button>
-      <button class="pad" data-drop="boom">808</button>
-    </div>
-    <div class="drop-row"><label class="label" for="dropSel">With your word</label>
-      <select id="dropSel"><option value="random">Random</option><option value="horn">Air horn</option><option value="skrrt">Skrrt</option><option value="siren">Siren</option><option value="boom">808 boom</option><option value="off">Off</option></select></div>
   </section>
 
   <section class="card" aria-label="Pitch trace">
@@ -303,7 +285,7 @@ const noteName=m=>{const r=Math.round(m);return NOTE[mod(r,12)]+(Math.floor(r/12
 <script>
 /* ===== App ===== */
 const $=s=>document.querySelector(s);
-const DEF={key:1,scale:'minor',retune:'hard',pattern:'single',double:'on',reverbOn:'on',reverb:35,echoOn:'on',echo:25,drop:'random',chaos:'on'};
+const DEF={key:1,scale:'minor',retune:'hard',pattern:'single',double:'on',reverbOn:'on',reverb:35,echoOn:'on',echo:25,chaos:'on'};
 let S=Object.assign({},DEF);
 try{const j=JSON.parse(localStorage.getItem('hypeman2')||'null');if(j)S=Object.assign(S,j);}catch(e){}
 const save=()=>{try{localStorage.setItem('hypeman2',JSON.stringify(S));}catch(e){}};
@@ -331,7 +313,7 @@ NOTE.forEach((n,i)=>{const o=document.createElement('option');o.value=i;o.textCo
 function syncUI(){
   keySel.value=S.key;
   document.querySelectorAll('.seg').forEach(seg=>{const k=seg.dataset.set;seg.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===S[k])));});
-  $('#reverb').value=S.reverb;$('#echo').value=S.echo;$('#dropSel').value=S.drop;
+  $('#reverb').value=S.reverb;$('#echo').value=S.echo;
   $('#reverb').disabled=S.reverbOn!=='on';$('#echo').disabled=S.echoOn!=='on';
   const scaleName={minor:'MINOR',major:'MAJOR',penta:'MINOR PENTA',chromatic:'CHROMATIC'}[S.scale];
   $('#readout').textContent=BPM+' BPM · '+(S.scale==='chromatic'?'':NOTE[S.key]+' ')+scaleName;
@@ -339,7 +321,6 @@ function syncUI(){
 function changed(){save();syncUI();redrawTrace();}
 keySel.addEventListener('change',()=>{S.key=+keySel.value;changed();});
 document.querySelectorAll('.seg').forEach(seg=>seg.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;S[seg.dataset.set]=b.dataset.v;changed();}));
-$('#dropSel').addEventListener('change',e=>{S.drop=e.target.value;save();});
 $('#reverb').addEventListener('input',e=>{S.reverb=+e.target.value;save();});
 $('#echo').addEventListener('input',e=>{S.echo=+e.target.value;save();});
 
@@ -374,50 +355,6 @@ function drawTrace(a){
 }
 window.addEventListener('resize',()=>redrawTrace());
 
-/* ---- sound drops (all synthesized) ---- */
-function shaper(c,k){const s=c.createWaveShaper(),n=1024,cv=new Float32Array(n);for(let i=0;i<n;i++){const x=i/(n-1)*2-1;cv[i]=Math.tanh(k*x)/Math.tanh(k);}s.curve=cv;return s;}
-function noiseSrc(c,sec){const n=Math.round(sec*c.sampleRate),b=c.createBuffer(1,n,c.sampleRate),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=Math.random()*2-1;const s=c.createBufferSource();s.buffer=b;return s;}
-function env(g,t,a,hold,rel,peak){g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(peak,t+a);g.gain.setValueAtTime(peak,t+a+hold);g.gain.exponentialRampToValueAtTime(0.0001,t+a+hold+rel);}
-const DROPS={
-  horn(c,out,t){
-    const sh=shaper(c,3),bp=c.createBiquadFilter();bp.type='bandpass';bp.frequency.value=1300;bp.Q.value=0.5;
-    const g=c.createGain();g.gain.value=0.5;sh.connect(bp);bp.connect(g);g.connect(out);
-    for(const[s,l]of[[0,0.15],[0.19,0.11],[0.34,0.75]])for(const f of[370,373,466,470]){
-      const o=c.createOscillator();o.type='sawtooth';o.frequency.setValueAtTime(f*0.96,t+s);o.frequency.linearRampToValueAtTime(f,t+s+0.04);
-      const e=c.createGain();env(e,t+s,0.01,l-0.05,0.07,0.22);o.connect(e);e.connect(sh);o.start(t+s);o.stop(t+s+l+0.1);}
-    return 1.2;
-  },
-  skrrt(c,out,t){
-    const dur=0.62,n=noiseSrc(c,dur+0.1),bp=c.createBiquadFilter();bp.type='bandpass';bp.Q.value=7;
-    bp.frequency.setValueAtTime(2700,t);bp.frequency.exponentialRampToValueAtTime(1500,t+dur);
-    const sq=c.createOscillator();sq.type='sawtooth';sq.frequency.setValueAtTime(1900,t);sq.frequency.exponentialRampToValueAtTime(1150,t+dur);
-    const sqg=c.createGain();sqg.gain.value=0.12;
-    const trem=c.createGain();trem.gain.value=0.55;const lfo=c.createOscillator();lfo.type='square';lfo.frequency.value=34;
-    const lg=c.createGain();lg.gain.value=0.45;lfo.connect(lg);lg.connect(trem.gain);
-    const e=c.createGain();env(e,t,0.02,dur-0.18,0.16,1.4);
-    n.connect(bp);bp.connect(trem);sq.connect(sqg);sqg.connect(trem);trem.connect(e);e.connect(out);
-    n.start(t);sq.start(t);lfo.start(t);n.stop(t+dur+0.1);sq.stop(t+dur+0.1);lfo.stop(t+dur+0.1);
-    return dur;
-  },
-  siren(c,out,t){
-    const dur=1.7,o=c.createOscillator(),o2=c.createOscillator();o.type='sawtooth';o2.type='square';
-    for(const osc of[o,o2]){osc.frequency.setValueAtTime(650,t);for(let k=0;k<4;k++){osc.frequency.linearRampToValueAtTime(1180,t+k*0.42+0.21);osc.frequency.linearRampToValueAtTime(650,t+(k+1)*0.42);}}
-    o2.detune.value=-18;const lp=c.createBiquadFilter();lp.type='lowpass';lp.frequency.value=2800;
-    const g2=c.createGain();g2.gain.value=0.5;const e=c.createGain();env(e,t,0.05,dur-0.3,0.25,0.22);
-    o.connect(lp);o2.connect(g2);g2.connect(lp);lp.connect(e);e.connect(out);o.start(t);o2.start(t);o.stop(t+dur+0.05);o2.stop(t+dur+0.05);
-    return dur;
-  },
-  boom(c,out,t){
-    const o=c.createOscillator();o.type='sine';o.frequency.setValueAtTime(170,t);o.frequency.exponentialRampToValueAtTime(48,t+0.09);o.frequency.exponentialRampToValueAtTime(40,t+1.4);
-    const e=c.createGain();e.gain.setValueAtTime(0.0001,t);e.gain.linearRampToValueAtTime(1,t+0.004);e.gain.exponentialRampToValueAtTime(0.0001,t+1.5);
-    const sh=shaper(c,2.4),g=c.createGain();g.gain.value=0.9;o.connect(e);e.connect(sh);sh.connect(g);g.connect(out);
-    const n=noiseSrc(c,0.03),hp=c.createBiquadFilter();hp.type='highpass';hp.frequency.value=2000;const ng=c.createGain();env(ng,t,0.001,0.004,0.02,0.4);
-    n.connect(hp);hp.connect(ng);ng.connect(out);o.start(t);o.stop(t+1.55);n.start(t);
-    return 1.5;
-  }
-};
-const DROP_KEYS=Object.keys(DROPS);
-
 /* ---- visual chaos ---- */
 const RM=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
 const wrapEl=document.querySelector('.wrap'),flashEl=$('#flash'),fx=$('#fx');
@@ -450,18 +387,9 @@ function fxLoop(now){
 }
 function chaos(h){
   if(S.chaos!=='on'||RM)return;
-  if(h.k==='hit'){shake(h.first?10:5);if(h.first){strobe('--gold');money(22);}else money(8);return;}
-  const n=h.name;
-  if(n==='horn'){shake(16);strobe('--gold');money(45);fxTimers.push(setTimeout(()=>strobe('--gold'),340));}
-  else if(n==='boom'){shake(20);strobe('--ice');money(30);}
-  else if(n==='siren'){for(let k=0;k<4;k++)fxTimers.push(setTimeout(()=>{strobe(k%2?'--ice':'--hot');shake(6);},k*420));money(25);}
-  else{shake(12);strobe('--hot');money(18);}
+  shake(h.first?10:5);
+  if(h.first){strobe('--gold');money(22);}else money(8);
 }
-function fireDrop(name){
-  const c=getCtx(),g=c.createGain();g.gain.value=0.8;g.connect(c.destination);
-  DROPS[name](c,g,c.currentTime+0.01);chaos({k:'drop',name});
-}
-document.querySelectorAll('.pad').forEach(b=>b.addEventListener('pointerdown',e=>{e.preventDefault();fireDrop(b.dataset.drop);b.classList.add('hit');setTimeout(()=>b.classList.remove('hit'),140);}));
 
 /* ---- render chain ---- */
 function makeIR(oc,sec){
@@ -472,7 +400,7 @@ function makeIR(oc,sec){
 async function render(voc,dbl,sr){
   const clip=voc.length/sr,reps=S.pattern==='triple'?3:1;
   const d=Math.ceil((clip+0.02)/TRIP8)*TRIP8,tail=2.6;
-  const len=Math.ceil((d*(reps-1)+clip+Math.max(tail,1.9))*sr);
+  const len=Math.ceil((d*(reps-1)+clip+tail)*sr);
   const oc=new OfflineAudioContext(2,len,sr);
   const mk=arr=>{const b=oc.createBuffer(1,arr.length,sr);b.getChannelData(0).set(arr);return b;};
   const vb=mk(voc),db=dbl?mk(dbl):null;
@@ -486,9 +414,8 @@ async function render(voc,dbl,sr){
   bus.connect(hp);hp.connect(pres);pres.connect(air);air.connect(comp);comp.connect(sh);
   const dry=oc.createGain();dry.gain.value=0.9;sh.connect(dry);dry.connect(oc.destination);
   const rv=S.reverbOn==='on'?S.reverb/100:0,ec=S.echoOn==='on'?S.echo/100:0;
-  let conv=null;
   if(rv>0){
-    conv=oc.createConvolver();conv.buffer=makeIR(oc,2.6);
+    const conv=oc.createConvolver();conv.buffer=makeIR(oc,2.6);
     const lp=oc.createBiquadFilter();lp.type='lowpass';lp.frequency.value=7000;
     const wet=oc.createGain();wet.gain.value=rv*0.85;
     sh.connect(conv);conv.connect(lp);lp.connect(wet);wet.connect(oc.destination);
@@ -506,17 +433,10 @@ async function render(voc,dbl,sr){
   for(let r=0;r<reps;r++){add(vb,r*d,gains[r],pans[r]);if(db)add(db,r*d,0.3,-pans[r]*0.6);}
   const clipEnd=d*(reps-1)+clip,hits=[];
   for(let r=0;r<reps;r++)hits.push({t:r*d,k:'hit',first:r===0});
-  let endT=clipEnd;
-  const dn=S.drop==='off'?null:(S.drop==='random'?DROP_KEYS[Math.floor(Math.random()*DROP_KEYS.length)]:S.drop);
-  if(dn){
-    const dt=dn==='boom'?0:clipEnd+0.03,dg=oc.createGain();dg.gain.value=0.5;dg.connect(oc.destination);
-    if(conv){const ds=oc.createGain();ds.gain.value=0.3;dg.connect(ds);ds.connect(conv);}
-    endT=Math.max(endT,dt+DROPS[dn](oc,dg,dt));hits.push({t:dt,k:'drop',name:dn});
-  }
   const out=await oc.startRendering();
   let pk=0;for(let ch=0;ch<out.numberOfChannels;ch++){const a=out.getChannelData(ch);for(let i=0;i<a.length;i++)pk=Math.max(pk,Math.abs(a[i]));}
   if(pk>0){const g=0.92/pk;for(let ch=0;ch<out.numberOfChannels;ch++){const a=out.getChannelData(ch);for(let i=0;i<a.length;i++)a[i]*=g;}}
-  return{buf:out,gateSec:endT+0.4,hits};
+  return{buf:out,gateSec:clipEnd+0.7,hits};
 }
 
 async function hypeify(clip,sr,label){
