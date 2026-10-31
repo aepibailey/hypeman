@@ -138,9 +138,11 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
   <section class="card controls" aria-label="Sound settings">
     <div class="ctl-row">
       <div class="ctl"><label class="label" for="key">Key</label><select id="key"></select></div>
-      <div class="ctl"><span class="label">Retune</span>
-        <div class="seg" data-set="retune"><button data-v="hard">Hard</button><button data-v="natural">Natural</button></div></div>
+      <div class="ctl"><span class="label">Harmony stack</span>
+        <div class="seg" data-set="harmony"><button data-v="on">On</button><button data-v="off">Off</button></div></div>
     </div>
+    <div class="ctl"><span class="label">Retune</span>
+      <div class="seg" data-set="retune"><button data-v="natural">Natural</button><button data-v="hard">Hard</button><button data-v="absurd">Absurd</button></div></div>
     <div class="ctl"><span class="label">Scale</span>
       <div class="seg" data-set="scale"><button data-v="minor">Minor</button><button data-v="major">Major</button><button data-v="penta">Penta</button><button data-v="chromatic">Chrom.</button></div></div>
     <div class="ctl-row">
@@ -201,12 +203,12 @@ function detectPitch(x,sr){
   for(let f=0;f<nF;f++){
     const st=clamp(Math.round(f*hopD-F/2),0,M-F);
     let e=0;for(let j=0;j<W;j++)e+=y[st+j]*y[st+j];
-    if(Math.sqrt(e/W)<pk*0.05)continue;
+    if(Math.sqrt(e/W)<pk*0.04)continue;
     d[0]=1;let run=0;
     for(let tau=1;tau<=tauMax;tau++){let s=0;for(let j=0;j<W;j++){const q=y[st+j]-y[st+j+tau];s+=q*q;}run+=s;d[tau]=run>0?s*tau/run:1;}
     let found=-1;
-    for(let tau=tauMin;tau<tauMax;tau++){if(d[tau]<0.15){while(tau+1<tauMax&&d[tau+1]<d[tau])tau++;found=tau;break;}}
-    if(found<0){let bv=0.25;for(let tau=tauMin;tau<tauMax;tau++)if(d[tau]<bv){bv=d[tau];found=tau;}}
+    for(let tau=tauMin;tau<tauMax;tau++){if(d[tau]<0.2){while(tau+1<tauMax&&d[tau+1]<d[tau])tau++;found=tau;break;}}
+    if(found<0){let bv=0.35;for(let tau=tauMin;tau<tauMax;tau++)if(d[tau]<bv){bv=d[tau];found=tau;}}
     if(found<1)continue;
     const a=d[found-1],b=d[found],c=d[found+1],den=a-2*b+c;
     const tau=found+(den!==0?clamp(0.5*(a-c)/den,-0.5,0.5):0);
@@ -227,7 +229,7 @@ function cleanTrack(f0){
   }
   for(let i=1;i<n;){ // bridge gaps up to 3 frames
     if(c[i]<=0&&c[i-1]>0){let j=i;while(j<n&&c[j]<=0)j++;
-      if(j<n&&j-i<=3){const a=c[i-1],b=c[j];for(let k=i;k<j;k++)c[k]=a+(b-a)*(k-i+1)/(j-i+1);}i=j;}else i++;
+      if(j<n&&j-i<=5){const a=c[i-1],b=c[j];for(let k=i;k<j;k++)c[k]=a+(b-a)*(k-i+1)/(j-i+1);}i=j;}else i++;
   }
   return c;
 }
@@ -238,21 +240,38 @@ function nearestInScale(m,pcs){
   return best;
 }
 
+function stepScale(t,k,pcs){
+  if(pcs.size===12)return t+(k===2?4:k===4?7:k);
+  let x=t,c=0;const dir=Math.sign(k);while(c<Math.abs(k)){x+=dir;if(pcs.has(mod(x,12)))c++;}return x;
+}
 function correctPitch(f0,hopSec,s){
   const pcs=new Set(SCALES[s.scale].map(p=>(p+s.key)%12));
-  const n=f0.length,inM=new Float32Array(n).fill(NaN),outM=new Float32Array(n).fill(NaN),ratio=new Float32Array(n).fill(1);
-  const a=1-Math.exp(-hopSec/0.07);let prevT=null,corrS=0,wasV=false;
+  const n=f0.length,inM=new Float32Array(n).fill(NaN),outM=new Float32Array(n).fill(NaN);
+  const ratio=new Float32Array(n).fill(1),h3=new Float32Array(n).fill(1),h5=new Float32Array(n).fill(1);
+  const absurd=s.retune==='absurd',a=1-Math.exp(-hopSec/0.07);
+  let med=0,nV=0;
+  if(absurd){const v=[];for(let i=0;i<n;i++)if(f0[i]>0)v.push(69+12*Math.log2(f0[i]/440));v.sort((p,q)=>p-q);nV=v.length;med=nV?v[nV>>1]:0;}
+  let prevT=null,corrS=0,wasV=false,vk=0;
   for(let i=0;i<n;i++){
     if(f0[i]<=0){wasV=false;continue;}
     const m=69+12*Math.log2(f0[i]/440);inM[i]=m;
-    let t=nearestInScale(m,pcs);
-    if(prevT!==null&&t!==prevT&&Math.abs(m-prevT)<0.62)t=prevT;
-    prevT=t;
+    let t;
+    if(absurd){ // stretch the contour, then force a low-mid-high flip across the word
+      t=nearestInScale(med+(m-med)*2.2,pcs);
+      if(nV>=14){const p=vk/(nV-1);if(p<0.22)t=stepScale(t,-1,pcs);else if(p>0.78)t=stepScale(t,1,pcs);}
+      vk++;
+    }else{
+      t=nearestInScale(m,pcs);
+      if(prevT!==null&&t!==prevT&&Math.abs(m-prevT)<0.62)t=prevT;
+      prevT=t;
+    }
     const c=t-m;let cc;
-    if(s.retune==='hard')cc=c;else{corrS=wasV?corrS+(c-corrS)*a:c;cc=corrS;}
+    if(s.retune==='natural'){corrS=wasV?corrS+(c-corrS)*a:c;cc=corrS;}else cc=c;
     wasV=true;outM[i]=m+cc;ratio[i]=Math.pow(2,cc/12);
+    const tt=Math.round(m+cc);
+    h3[i]=Math.pow(2,(stepScale(tt,2,pcs)-m)/12);h5[i]=Math.pow(2,(stepScale(tt,4,pcs)-m)/12);
   }
-  return{inM,outM,ratio};
+  return{inM,outM,ratio,h3,h5};
 }
 
 function analyze(x,sr,s){
@@ -261,14 +280,15 @@ function analyze(x,sr,s){
 }
 
 /* TD-PSOLA: pitch-synchronous grains, re-spaced at the tuned period. Keeps duration and vowel color. */
-function psola(x,sr,f0,ratio,hop,mul){
+function psola(x,sr,f0,ratio,hop,mul,unv){
+  if(unv===undefined)unv=mul>1?0.25:1;
   const N=x.length,nF=f0.length;
   const fAt=i=>{const k=Math.floor(i/hop);return k>=0&&k<nF?f0[k]:0;};
   const rAt=i=>{const k=Math.floor(i/hop);return k>=0&&k<nF?ratio[k]:1;};
   const ms=[];let t=0;
   while(t<N){
     const f=fAt(t),v=f>0,T=v?sr/f:sr/140;
-    ms.push({p:t,T,r:v?rAt(t)*mul:1,g:v?1:(mul>1?0.25:1)});
+    ms.push({p:t,T,r:v?rAt(t)*mul:1,g:v?1:unv});
     let nx=t+T;const fn=fAt(Math.round(nx));
     if(v&&fn>0){const Tn=sr/fn,lo=Math.max(t+1,Math.round(nx-Tn*0.2)),hi=Math.min(N-1,Math.round(nx+Tn*0.2));
       let bi=Math.round(nx),bv=-1e9;for(let i=lo;i<=hi;i++)if(x[i]>bv){bv=x[i];bi=i;}nx=bi;}
@@ -315,10 +335,11 @@ const noteName=m=>{const r=Math.round(m);return NOTE[mod(r,12)]+(Math.floor(r/12
 <script>
 /* ===== App ===== */
 const $=s=>document.querySelector(s);
-const DEF={key:1,scale:'minor',retune:'hard',pattern:'single',double:'on',reverbOn:'on',reverb:35,echoOn:'on',echo:25,chaos:'on'};
+const DEF={key:1,scale:'minor',retune:'absurd',harmony:'on',pattern:'single',double:'on',reverbOn:'on',reverb:35,echoOn:'on',echo:25,chaos:'on'};
 let S=Object.assign({},DEF);
-try{const j=JSON.parse(localStorage.getItem('hypeman2')||'null');if(j)S=Object.assign(S,j);}catch(e){}
-const save=()=>{try{localStorage.setItem('hypeman2',JSON.stringify(S));}catch(e){}};
+try{const j3=localStorage.getItem('hypeman3'),j=JSON.parse(j3||localStorage.getItem('hypeman2')||'null');
+  if(j)S=Object.assign(S,j);if(!j3){S.retune='absurd';S.harmony='on';}}catch(e){}
+const save=()=>{try{localStorage.setItem('hypeman3',JSON.stringify(S));}catch(e){}};
 
 let ctx=null,stream=null,proc=null,srcNode=null,busy=false;
 let lastClip=null,lastSr=0,lastBuf=null,lastHits=[],lastGate=0,orbTimer=null,curSrc=null;
@@ -427,13 +448,13 @@ function makeIR(oc,sec){
   for(let ch=0;ch<2;ch++){const d=b.getChannelData(ch);for(let i=pre;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,2.8);}
   return b;
 }
-async function render(voc,dbl,sr){
+async function render(voc,dbl,sr,harms){
   const clip=voc.length/sr,reps=S.pattern==='triple'?3:1;
   const d=Math.ceil((clip+0.02)/TRIP8)*TRIP8,tail=2.6;
   const len=Math.ceil((d*(reps-1)+clip+tail)*sr);
   const oc=new OfflineAudioContext(2,len,sr);
   const mk=arr=>{const b=oc.createBuffer(1,arr.length,sr);b.getChannelData(0).set(arr);return b;};
-  const vb=mk(voc),db=dbl?mk(dbl):null;
+  const vb=mk(voc),db=dbl?mk(dbl):null,hb=harms?harms.map(mk):null;
   const bus=oc.createGain();
   const hp=oc.createBiquadFilter();hp.type='highpass';hp.frequency.value=95;
   const pres=oc.createBiquadFilter();pres.type='peaking';pres.frequency.value=3200;pres.Q.value=0.9;pres.gain.value=4;
@@ -460,7 +481,8 @@ async function render(voc,dbl,sr){
   const gains=[1,0.55,0.4],pans=[0,-0.4,0.4];
   const add=(buf,t,gv,pv)=>{const s=oc.createBufferSource();s.buffer=buf;const gg=oc.createGain();gg.gain.value=gv;
     const pn=oc.createStereoPanner();pn.pan.value=pv;s.connect(gg);gg.connect(pn);pn.connect(bus);s.start(t);};
-  for(let r=0;r<reps;r++){add(vb,r*d,gains[r],pans[r]);if(db)add(db,r*d,0.3,-pans[r]*0.6);}
+  for(let r=0;r<reps;r++){add(vb,r*d,gains[r],pans[r]);if(db)add(db,r*d,0.3*gains[r],-pans[r]*0.6);
+    if(hb){add(hb[0],r*d,0.38*gains[r],-0.55);add(hb[1],r*d,0.34*gains[r],0.55);}}
   const clipEnd=d*(reps-1)+clip,hits=[];
   for(let r=0;r<reps;r++)hits.push({t:r*d,k:'hit',first:r===0});
   const out=await oc.startRendering();
@@ -475,7 +497,8 @@ async function hypeify(clip,sr,label){
     const a=analyze(clip,sr,S);
     const voc=psola(clip,sr,a.f0,a.ratio,a.hop,1);
     const dbl=S.double==='on'?psola(clip,sr,a.f0,a.ratio,a.hop,2):null;
-    const{buf,gateSec,hits}=await render(voc,dbl,sr);
+    const harms=S.harmony==='on'?[psola(clip,sr,a.f0,a.h3,a.hop,1,0.15),psola(clip,sr,a.f0,a.h5,a.hop,1,0.15)]:null;
+    const{buf,gateSec,hits}=await render(voc,dbl,sr,harms);
     lastClip=clip;lastSr=sr;lastBuf=buf;lastHits=hits;lastGate=gateSec;$('#replayBtn').disabled=false;$('#saveBtn').disabled=false;
     $('#traceLabel').textContent='Pitch · '+label;drawTrace(a);
     const sm=summarize(a),dur=(clip.length/sr).toFixed(2);
