@@ -45,7 +45,7 @@ header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
 .status{font-family:var(--mono);font-size:13px;color:var(--muted);text-align:center;min-height:2.6em;max-width:36ch;text-wrap:balance}
 .status b{color:var(--text);font-weight:600}
 .status .warn{color:var(--hot)}
-.actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%}
+.actions{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:100%}
 .btn{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:12px 6px;font-family:var(--ui);font-weight:700;font-size:15px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
 .btn:disabled{opacity:.4;cursor:default}
 .btn.primary{border-color:var(--ice);color:var(--ice)}
@@ -73,6 +73,24 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 #flash.on{animation:flash .3s ease-out}
 @keyframes flash{0%{opacity:.5}100%{opacity:0}}
 #fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:19}
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+@media (max-width:359px){.board{grid-template-columns:repeat(2,1fr)}}
+.tile{min-width:0;border-radius:12px;border:1px solid var(--line);background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+.tile.hit{border-color:var(--gold);background:var(--gold)}
+.tile-play{flex:1;min-height:72px;border:0;background:transparent;color:var(--text);padding:10px 9px;display:flex;flex-direction:column;justify-content:space-between;gap:6px;text-align:left;cursor:pointer;font-family:var(--display);font-size:14px;line-height:1.1;overflow-wrap:anywhere;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.tile.hit .tile-play{color:var(--bg)}
+.tile .meta{font-family:var(--mono);font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tile.hit .meta{color:var(--bg)}
+.tile-edit{display:flex;gap:4px;padding:0 6px 6px}
+.mini-btn{flex:1;min-width:0;border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:8px;font-family:var(--ui);font-weight:700;font-size:13px;letter-spacing:.04em;padding:6px 0;cursor:pointer}
+.mini-btn.danger{color:var(--hot);border-color:var(--hot)}
+.tile input,.save-form input{width:100%;min-width:0;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px 10px;font-family:var(--ui);font-weight:600;font-size:16px}
+.tile input{margin:8px 6px 6px;width:auto}
+.save-form{display:flex;gap:8px;align-items:stretch}
+.save-form input{flex:1}
+.save-form .btn{padding:9px 12px}
+.link{background:none;border:0;color:var(--ice);font-family:var(--ui);font-weight:700;font-size:14px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;padding:4px 2px}
+.empty{margin:0;font-size:15px;color:var(--muted)}
 .ctl-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .seg.mini{width:128px;flex:none}
 input[type=range]:disabled{opacity:.35}
@@ -94,7 +112,19 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
       <button class="btn primary" id="recBtn">Record</button>
       <button class="btn" id="demoBtn">Demo</button>
       <button class="btn" id="replayBtn" disabled>Replay</button>
+      <button class="btn" id="saveBtn" disabled>Save</button>
     </div>
+  </section>
+
+  <section class="card" aria-label="Soundboard">
+    <div class="card-head"><span class="label">Soundboard</span><button class="link" id="editBtn" hidden>Edit</button></div>
+    <form class="save-form" id="saveForm" hidden>
+      <input id="saveName" maxlength="24" autocomplete="off" aria-label="Name for this take">
+      <button class="btn primary" type="submit">Save</button>
+      <button class="btn" type="button" id="saveCancel">Cancel</button>
+    </form>
+    <div class="board" id="board"></div>
+    <p class="empty" id="boardEmpty">No saved takes yet. Record a word, then tap Save to pin it here.</p>
   </section>
 
   <section class="card" aria-label="Pitch trace">
@@ -291,7 +321,7 @@ try{const j=JSON.parse(localStorage.getItem('hypeman2')||'null');if(j)S=Object.a
 const save=()=>{try{localStorage.setItem('hypeman2',JSON.stringify(S));}catch(e){}};
 
 let ctx=null,stream=null,proc=null,srcNode=null,busy=false;
-let lastClip=null,lastSr=0,lastBuf=null,orbTimer=null,curSrc=null;
+let lastClip=null,lastSr=0,lastBuf=null,lastHits=[],lastGate=0,orbTimer=null,curSrc=null;
 const demo48=demoVoice(48000);
 
 const orb=$('#orb'),statusEl=$('#status');
@@ -446,7 +476,7 @@ async function hypeify(clip,sr,label){
     const voc=psola(clip,sr,a.f0,a.ratio,a.hop,1);
     const dbl=S.double==='on'?psola(clip,sr,a.f0,a.ratio,a.hop,2):null;
     const{buf,gateSec,hits}=await render(voc,dbl,sr);
-    lastClip=clip;lastSr=sr;lastBuf=buf;$('#replayBtn').disabled=false;
+    lastClip=clip;lastSr=sr;lastBuf=buf;lastHits=hits;lastGate=gateSec;$('#replayBtn').disabled=false;$('#saveBtn').disabled=false;
     $('#traceLabel').textContent='Pitch · '+label;drawTrace(a);
     const sm=summarize(a),dur=(clip.length/sr).toFixed(2);
     if(sm){const c=Math.round((sm.inm-Math.round(sm.inm))*100);
@@ -464,6 +494,95 @@ function play(buf,gateSec,hits){
   busy=false;setOrb('playing');
   (hits||[]).forEach(hh=>fxTimers.push(setTimeout(()=>chaos(hh),hh.t*1000)));
   orbTimer=setTimeout(()=>{if(orb.dataset.state==='playing')setOrb('idle');},gateSec*1000);
+}
+
+/* ---- soundboard (saved in this browser with IndexedDB) ---- */
+let idb=null,takes=[],editing=false,renaming=null,confirmDel=null;
+const bufCache=new Map(),boardEl=$('#board'),saveForm=$('#saveForm'),saveName=$('#saveName');
+const canShareFiles=!!(navigator.canShare&&window.File);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function openDB(){return idb?Promise.resolve(idb):new Promise((res,rej)=>{const r=indexedDB.open('hypeman',1);
+  r.onupgradeneeded=()=>r.result.createObjectStore('takes',{keyPath:'id'});r.onsuccess=()=>{idb=r.result;res(idb);};r.onerror=()=>rej(r.error);});}
+async function dbDo(mode,fn){const db=await openDB();return new Promise((res,rej)=>{const t=db.transaction('takes',mode),q=fn(t.objectStore('takes'));
+  t.oncomplete=()=>res(q?q.result:undefined);t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error);});}
+const dbAll=()=>dbDo('readonly',s=>s.getAll()),dbPut=r=>dbDo('readwrite',s=>s.put(r)),dbDel=id=>dbDo('readwrite',s=>s.delete(id));
+
+function encodeWav(b){
+  const ch=b.numberOfChannels,sr=b.sampleRate,n=b.length,bytes=44+n*ch*2,ab=new ArrayBuffer(bytes),v=new DataView(ab);
+  const w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));};
+  w(0,'RIFF');v.setUint32(4,bytes-8,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,ch,true);
+  v.setUint32(24,sr,true);v.setUint32(28,sr*ch*2,true);v.setUint16(32,ch*2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,n*ch*2,true);
+  const data=[];for(let c=0;c<ch;c++)data.push(b.getChannelData(c));
+  let o=44;for(let i=0;i<n;i++)for(let c=0;c<ch;c++){const s=clamp(data[c][i],-1,1);v.setInt16(o,s<0?s*0x8000:s*0x7fff,true);o+=2;}
+  return new Blob([ab],{type:'audio/wav'});
+}
+function decodeBlob(blob){const c=getCtx();return blob.arrayBuffer().then(ab=>new Promise((res,rej)=>{const p=c.decodeAudioData(ab,res,rej);if(p&&p.then)p.then(res,rej);}));}
+
+async function playTake(t,tile){
+  try{
+    let buf=bufCache.get(t.id);if(!buf){buf=await decodeBlob(t.wav);bufCache.set(t.id,buf);}
+    play(buf,t.gateSec,t.hits);setStatus('Playing <b>'+esc(t.name)+'</b>');
+    tile.classList.add('hit');setTimeout(()=>tile.classList.remove('hit'),160);
+  }catch(e){setStatus('<span class="warn">Couldn\'t play that take.</span>');}
+}
+function shareTake(t){
+  const f=new File([t.wav],(t.name.replace(/[^\w\- ]+/g,'').trim()||'hype')+'.wav',{type:'audio/wav'});
+  if(navigator.canShare({files:[f]}))navigator.share({files:[f],title:t.name}).catch(()=>{});
+  else setStatus('Sharing audio files isn\'t supported in this browser.');
+}
+function renderBoard(){
+  boardEl.innerHTML='';
+  if(!takes.length)editing=false;
+  $('#boardEmpty').hidden=takes.length>0;
+  const eb=$('#editBtn');eb.hidden=!takes.length;eb.textContent=editing?'Done':'Edit';
+  for(const t of takes){
+    const tile=document.createElement('div');tile.className='tile';
+    if(editing&&renaming===t.id){
+      const inp=document.createElement('input');inp.maxLength=24;inp.value=t.name;inp.setAttribute('aria-label','Rename take');
+      const done=async()=>{if(renaming!==t.id)return;renaming=null;const v=inp.value.trim();if(v&&v!==t.name){t.name=v;try{await dbPut(t);}catch(e){}}renderBoard();};
+      inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();done();}if(e.key==='Escape'){renaming=null;renderBoard();}});
+      inp.addEventListener('blur',done);tile.appendChild(inp);boardEl.appendChild(tile);setTimeout(()=>{inp.focus();inp.select();},0);continue;
+    }
+    const b=document.createElement('button');b.className='tile-play';b.type='button';
+    b.innerHTML='<span>'+esc(t.name)+'</span><span class="meta">'+t.dur.toFixed(1)+' s'+(editing?' · tap to rename':'')+'</span>';
+    b.addEventListener('pointerdown',e=>{if(editing)return;e.preventDefault();playTake(t,tile);});
+    b.addEventListener('click',e=>{if(editing){renaming=t.id;confirmDel=null;renderBoard();}});
+    b.addEventListener('keydown',e=>{if(!editing&&(e.key===' '||e.key==='Enter')){e.preventDefault();playTake(t,tile);}});
+    tile.appendChild(b);
+    if(editing){
+      const row=document.createElement('div');row.className='tile-edit';
+      if(canShareFiles){const sb=document.createElement('button');sb.className='mini-btn';sb.type='button';sb.textContent='Share';sb.addEventListener('click',()=>shareTake(t));row.appendChild(sb);}
+      const db=document.createElement('button');db.type='button';db.className='mini-btn danger';db.textContent=confirmDel===t.id?'Sure?':'Delete';
+      db.addEventListener('click',async()=>{
+        if(confirmDel!==t.id){confirmDel=t.id;renderBoard();return;}
+        confirmDel=null;try{await dbDel(t.id);}catch(e){}
+        bufCache.delete(t.id);takes=takes.filter(x=>x.id!==t.id);renderBoard();setStatus('Deleted <b>'+esc(t.name)+'</b>.');
+      });
+      row.appendChild(db);tile.appendChild(row);
+    }
+    boardEl.appendChild(tile);
+  }
+}
+$('#editBtn').addEventListener('click',()=>{editing=!editing;renaming=null;confirmDel=null;renderBoard();});
+$('#saveBtn').addEventListener('click',()=>{
+  if(!lastBuf)return;saveForm.hidden=false;saveName.value='Take '+(takes.length+1);
+  saveName.focus();saveName.select();saveForm.scrollIntoView({block:'nearest',behavior:'smooth'});
+});
+$('#saveCancel').addEventListener('click',()=>{saveForm.hidden=true;});
+saveForm.addEventListener('submit',async e=>{
+  e.preventDefault();if(!lastBuf)return;
+  const name=saveName.value.trim()||('Take '+(takes.length+1));
+  const rec={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),name,created:Date.now(),
+    wav:encodeWav(lastBuf),dur:lastClip?lastClip.length/lastSr:lastBuf.duration,hits:lastHits,gateSec:lastGate};
+  try{
+    await dbPut(rec);bufCache.set(rec.id,lastBuf);takes.push(rec);saveForm.hidden=true;$('#saveBtn').disabled=true;renderBoard();
+    setStatus('Saved <b>'+esc(name)+'</b> to your soundboard.');
+    try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist();}catch(_){}
+  }catch(err){setStatus('<span class="warn">Couldn\'t save here.</span> This browser is blocking storage for the page.');}
+});
+async function loadBoard(){
+  try{takes=(await dbAll())||[];takes.sort((a,b)=>a.created-b.created);}catch(e){takes=[];}
+  renderBoard();
 }
 
 /* ---- press and hold to record ---- */
@@ -540,5 +659,5 @@ pick.addEventListener('change',async()=>{
 $('#demoBtn').addEventListener('click',()=>{const c=getCtx();hypeify(demoVoice(c.sampleRate),c.sampleRate,'demo voice');});
 $('#replayBtn').addEventListener('click',()=>{if(lastClip){getCtx();hypeify(lastClip,lastSr,'replay');}});
 
-syncUI();redrawTrace();
+syncUI();redrawTrace();loadBoard();
 </script>
